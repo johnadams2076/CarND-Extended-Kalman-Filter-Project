@@ -25,6 +25,9 @@ void KalmanFilter::Predict() {
   TODO:
     * predict the state
   */
+  	x_ = F_ * x_;
+	MatrixXd Ft = F_.transpose();
+	P_ = F_ * P_ * Ft + Q_;
 }
 
 void KalmanFilter::Update(const VectorXd &z) {
@@ -32,6 +35,19 @@ void KalmanFilter::Update(const VectorXd &z) {
   TODO:
     * update the state by using Kalman Filter equations
   */
+  	VectorXd z_pred = H_ * x_;
+	VectorXd y = z - z_pred;
+	MatrixXd Ht = H_.transpose();
+	MatrixXd S = H_ * P_ * Ht + R_;
+	MatrixXd Si = S.inverse();
+	MatrixXd PHt = P_ * Ht;
+	MatrixXd K = PHt * Si;
+
+	//new estimate
+	x_ = x_ + (K * y);
+	long x_size = x_.size();
+	MatrixXd I = MatrixXd::Identity(x_size, x_size);
+	P_ = (I - K * H_) * P_;
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -39,4 +55,47 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   TODO:
     * update the state by using Extended Kalman Filter equations
   */
+  double px = x_(0);
+  double py = x_(1);
+  double vx = x_(2);
+  double vy = x_(3);
+  double rho = sqrt(pow(px,2) + pow(py, 2));
+  double theta = atan2(py, px);
+  double rho_dot = (px*vx + py*vy) / rho;
+  VectorXd h = VectorXd(3);
+  h << rho, theta, rho_dot;
+  VectorXd y = z - h;
+  bool isInRange = false;
+ // Range is -pi < y(1) < pi
+  while (!isInRange ) {
+    if ( y(1) > M_PI ) 
+    {
+      y(1) -= 2 *M_PI;
+    } else if (y(1) < -M_PI)
+    {
+      y(1) +=  2 * M_PI;
+    }
+    else
+    {
+      isInRange = true;
+    }
+  }
+  /**
+     Can also be done as suggested by mentor.
+     while ( y(1) > M_PI ) y(1)-=2.0*M_PI;
+	 while ( y(1) <= -M_PI) y(1)+=2.0*M_PI;
+     I have to weigh in on time complexity vs maintainability. 
+  
+  */
+   	MatrixXd Ht = H_.transpose();
+	MatrixXd S = H_ * P_ * Ht + R_;
+	MatrixXd Si = S.inverse();
+	MatrixXd PHt = P_ * Ht;
+	MatrixXd K = PHt * Si;
+
+	//new estimate
+	x_ = x_ + (K * y);
+	long x_size = x_.size();
+	MatrixXd I = MatrixXd::Identity(x_size, x_size);
+	P_ = (I - K * H_) * P_;
 }
